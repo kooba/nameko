@@ -116,9 +116,9 @@ def setup_backdoor(runner, port):
     return socket, gt
 
 
-def run(services, config, backdoor_port=None):
+def run(services, config, backdoor_port=None, dev=False):
 
-    def run_inn():
+    def run_service():
 
         service_runner = ServiceRunner(config)
 
@@ -165,7 +165,10 @@ def run(services, config, backdoor_port=None):
                 # runner.wait completed
                 break
 
-    run_with_reloader(run_inn)
+    if dev:
+        run_with_reloader(run_service)
+    else:
+        run_service()
 
 
 def main(args):
@@ -186,7 +189,7 @@ def main(args):
     else:
         config = {AMQP_URI_CONFIG_KEY: args.broker}
 
-    run(services, config, backdoor_port=args.backdoor_port)
+    run(services, config, backdoor_port=args.backdoor_port, dev=args.dev)
 
 
 def init_parser(parser):
@@ -208,5 +211,9 @@ def init_parser(parser):
         help='Specify a port number to host a backdoor, which can be connected'
         ' to for an interactive interpreter within the running service'
         ' process using `nameko backdoor`.')
+
+    parser.add_argument(
+        '--dev', action='store_true',
+        help='Run service in development mode with reloader enabled.')
 
     return parser
