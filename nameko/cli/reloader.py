@@ -13,7 +13,7 @@ def finish():
     sys.exit(0)
 
 
-def run_with_reloader(main_func):
+def run_with_reloader(main_func, *args, **kwargs):
     """
     Run the given function with reloader.
 
@@ -27,7 +27,7 @@ def run_with_reloader(main_func):
 
     try:
         if os.environ.get('NAMEKO_RUN') == 'true':
-            eventlet.spawn(main_func)
+            eventlet.spawn(main_func, *args, **kwargs)
             watch_files()
         else:
             sys.exit(restart_with_reloader())
