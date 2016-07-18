@@ -137,10 +137,9 @@ def run(services, config, backdoor_port=None, reload_event=None):
 
     # if the signal handler fires while eventlet is waiting on a socket,
     # the __main__ greenlet gets an OSError(4) "Interrupted system call".
-    # This is a side-effect of the eventlet hub mechanism. To protect
-    # nameko from seeing the exception, we wrap the runner.wait
-    # call in a greenlet spawned here,
-    # so that we can catch (and silence) the exception.
+    # This is a side-effect of the eventlet hub mechanism. To protect nameko
+    # from seeing the exception, we wrap the runner.wait call in a greenlet
+    # spawned here, so that we can catch (and silence) the exception.
     runnlet = eventlet.spawn(service_runner.wait)
 
     if reload_event is not None:
@@ -159,8 +158,7 @@ def run(services, config, backdoor_port=None, reload_event=None):
                 continue
             raise
         except KeyboardInterrupt:
-            # looks nicer with the ^C e.g. bash prints in the terminal
-            print()
+            print()  # looks nicer with the ^C e.g. bash prints in the terminal
             try:
                 service_runner.stop()
             except KeyboardInterrupt:
