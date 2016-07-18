@@ -5,11 +5,12 @@ import subprocess
 import sys
 import time
 from logging import getLogger
+from eventlet import event
 
 _log = getLogger(__name__)
 
 
-def finish():
+def stop():
     sys.exit(0)
 
 
@@ -22,13 +23,19 @@ def run_with_reloader(main_func, *args, **kwargs):
     """
 
     # catch TERM signal to allow finalizers to run and reap daemonic children
-    #signal.signal(signal.SIGTERM, lambda *args: sys.exit(0))
-    signal.signal(signal.SIGTERM, finish)
+    # signal.signal(signal.SIGTERM, lambda *args: sys.exit(0))
+    signal.signal(signal.SIGTERM, stop)
+
+    reload_event = event.Event()
+
+    kwargs['reload_event'] = reload_event
 
     try:
         if os.environ.get('NAMEKO_RUN') == 'true':
-            eventlet.spawn(main_func, *args, **kwargs)
-            watch_files()
+            main_gt = eventlet.spawn(main_func, *args, **kwargs)
+            eventlet.spawn(watch_files, reload_event)
+            main_gt.wait()
+            sys.exit(3)
         else:
             sys.exit(restart_with_reloader())
     except KeyboardInterrupt:
@@ -40,21 +47,20 @@ def restart_with_reloader():
     but running the reloader thread.
     """
     while True:
-        _log.info('Restarting with reloader')
+        _log.info('Starting with reloader')
         args = [sys.executable] + sys.argv
         new_environ = os.environ.copy()
         new_environ['NAMEKO_RUN'] = 'true'
 
-        exit_code = subprocess.call(args, env=new_environ,
-                                    close_fds=False)
+        exit_code = subprocess.call(args, env=new_environ, close_fds=False)
 
         if exit_code != 3:
             return exit_code
 
 
-def trigger_reload(filename):
+def trigger_reload(filename, reload_event):
     log_reload(filename)
-    sys.exit(3)
+    reload_event.send()
 
 
 def log_reload(filename):
@@ -62,7 +68,7 @@ def log_reload(filename):
     _log.info('Detected change in {}, reloading'.format(filename))
 
 
-def watch_files():
+def watch_files(reload_event):
     mtimes = {}
     while True:
         for filename in _get_module_files():
@@ -76,7 +82,7 @@ def watch_files():
                 mtimes[filename] = mtime
                 continue
             elif mtime > old_time:
-                trigger_reload(filename)
+                trigger_reload(filename, reload_event)
         time.sleep(1)
 
 

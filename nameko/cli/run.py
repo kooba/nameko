@@ -116,7 +116,7 @@ def setup_backdoor(runner, port):
     return socket, gt
 
 
-def run(services, config, backdoor_port=None):
+def run(services, config, backdoor_port=None, reload_event=None):
 
     service_runner = ServiceRunner(config)
 
@@ -142,6 +142,12 @@ def run(services, config, backdoor_port=None):
     # call in a greenlet spawned here,
     # so that we can catch (and silence) the exception.
     runnlet = eventlet.spawn(service_runner.wait)
+
+    if reload_event is not None:
+        def service_shutdown():
+            reload_event.wait()
+            os.kill(os.getpid(), signal.SIGTERM)
+        eventlet.spawn(service_shutdown)
 
     while True:
         try:
